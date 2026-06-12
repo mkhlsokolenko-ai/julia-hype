@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/concepts/:slug", "destination": "/concept.html" }
+  ]
+}

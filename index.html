@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JULIA — AI Foresight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg0:#1E1340; --bg1:#0F0A1E; --text:#E9E3FF; --muted:#9A8FC4; --dim:#6B5E93; --border:rgba(192,132,252,.16); --glow:#C084FC; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(130% 90% at 50% -15%, #2A1A5C 0%, var(--bg0) 38%, var(--bg1) 100%);
+      background-attachment: fixed; color: var(--text); min-height: 100vh; padding: 24px 20px 70px;
+    }
+    #app { width: 100%; max-width: 1120px; margin: 0 auto; }
+    .topnav { display: flex; align-items: center; }
+    .topnav .wordmark { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; letter-spacing: .16em; font-size: 22px;
+      background: linear-gradient(96deg,#F0ABFC,#C084FC 48%,#FB7185); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    .hero { text-align: center; padding: 52px 0 18px; }
+    .headline { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; letter-spacing: -2px; line-height: 1.04;
+      font-size: clamp(40px, 7vw, 72px); }
+    .headline .ai { background: linear-gradient(96deg,#F0ABFC,#C084FC 50%,#FB7185); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .sub { margin: 18px auto 0; max-width: 620px; color: var(--muted); font-size: 17px; line-height: 1.55; }
+    .sub b { color: var(--text); font-weight: 600; }
+
+    .hero-search {
+      display: flex; align-items: center; gap: 14px; max-width: 720px; margin: 30px auto 0;
+      padding: 8px 8px 8px 24px; height: 64px;
+      background: rgba(255,255,255,.045); border: 1px solid rgba(192,132,252,.3); border-radius: 999px;
+      box-shadow: 0 30px 80px -34px rgba(192,132,252,.7), inset 0 1px 0 rgba(255,255,255,.04); transition: border-color .2s, box-shadow .2s;
+    }
+    .hero-search:focus-within { border-color: rgba(192,132,252,.6); box-shadow: 0 30px 90px -30px rgba(192,132,252,.9); }
+    .hero-search .ic { font-size: 19px; opacity: .85; }
+    .hero-search input { flex: 1; background: none; border: 0; outline: none; color: var(--text); font-family: inherit; font-size: 17px; font-weight: 500; }
+    .hero-search input::placeholder { color: var(--muted); }
+    .hero-search button { width: 48px; height: 48px; flex: none; border: 0; border-radius: 50%; cursor: pointer; font-size: 21px; color: #160E2E;
+      background: linear-gradient(96deg,#F0ABFC,#C084FC); transition: transform .14s; display: grid; place-items: center; }
+    .hero-search button:hover { transform: scale(1.07); }
+
+    .try { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: 18px auto 0; max-width: 760px; }
+    .try .try-l { font-family: 'Space Grotesk', monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+    .try button { font-family: inherit; font-size: 13px; color: var(--muted); background: rgba(255,255,255,.03);
+      border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; cursor: pointer; transition: all .15s; }
+    .try button:hover { color: var(--text); border-color: rgba(192,132,252,.4); }
+
+    .trending { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 9px; margin: 22px auto 0; }
+    .trending .trend-l { color: var(--muted); font-size: 13px; font-weight: 600; margin-right: 2px; }
+    .trend-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--text);
+      text-decoration: none; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; transition: border-color .15s; }
+    .trend-chip:hover { border-color: rgba(192,132,252,.4); }
+    .trend-chip i { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+
+    /* view switcher */
+    .switcher { display: flex; justify-content: center; gap: 6px; margin-top: 48px; }
+    .switcher button { font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
+      background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 999px; padding: 9px 20px; cursor: pointer; transition: all .16s; }
+    .switcher button:hover { color: var(--text); border-color: rgba(192,132,252,.35); }
+    .switcher button.on { color: #160E2E; background: linear-gradient(96deg,#F0ABFC,#C084FC); border-color: transparent; }
+
+    .stage { position: relative; margin-top: 18px; padding: 14px; background: rgba(255,255,255,.02);
+      border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 40px 100px -50px rgba(192,132,252,.5); }
+    .stage canvas { display: block; width: 100%; }
+    .eyebrow { position: absolute; top: 22px; left: 26px; font-family: 'Space Grotesk', monospace; font-size: 11px;
+      letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+
+    .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 22px; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
+    .legend i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 9px currentColor; }
+
+    /* movers */
+    .movers { margin-top: 64px; }
+    .movers-h { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: -.5px; }
+    .movers-h .em { background: linear-gradient(96deg,#F0ABFC,#C084FC); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .movers-h .movers-sub { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0; color: var(--muted); }
+    .movers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 20px; }
+    .mv-card { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px; border-radius: 16px;
+      background: rgba(255,255,255,.025); border: 1px solid var(--border); text-decoration: none; color: var(--text); transition: border-color .15s, transform .15s; }
+    .mv-card:hover { border-color: rgba(192,132,252,.4); transform: translateY(-2px); }
+    .mv-name { font-size: 18px; font-weight: 700; }
+    .mv-trans { display: flex; align-items: center; gap: 10px; }
+    .mv-arr { color: var(--dim); }
+    .mv-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; }
+    .mv-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
+    .mv-meta { font-family: 'Space Grotesk', monospace; font-size: 12.5px; color: var(--dim); }
+
+    .tip { position: fixed; z-index: 50; pointer-events: none; background: rgba(20,12,42,.97); border: 1px solid rgba(192,132,252,.35);
+      border-radius: 12px; padding: 11px 13px; max-width: 280px; box-shadow: 0 20px 50px -20px rgba(0,0,0,.7); backdrop-filter: blur(6px); }
+    .tip-name { font-weight: 700; font-size: 14px; margin-bottom: 5px; color: #fff; }
+    .tip-row { font-size: 12.5px; color: var(--muted); margin-bottom: 7px; }
+    .tip-grid { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-size: 12px; font-family: 'Space Grotesk', monospace; }
+    .tip-grid span { color: var(--muted); } .tip-grid b { color: var(--text); text-align: right; font-weight: 600; }
+
+    @media (max-width: 560px) { .hero-search { height: 56px; padding-left: 18px; } .hero-search input { font-size: 15px; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="topnav"><span class="wordmark">JULIA</span></div>
+
+    <header class="hero">
+      <h1 class="headline">Спросите что-нибудь про <span class="ai">AI</span></h1>
+      <p class="sub">Форсайт в реальном времени на основе 50 000+ научных статей, сигналов сообщества и <b id="stat-count">…</b> отслеживаемых концептов · обновлено <b id="stat-updated">…</b>.</p>
+      <div class="hero-search">
+        <span class="ic">🔍</span>
+        <input id="q" placeholder="Спросите JULIA про любой AI-тренд…" autocomplete="off" aria-label="Поиск" />
+        <button id="go" aria-label="Искать">→</button>
+      </div>
+      <div class="try">
+        <span class="try-l">Попробуйте:</span>
+        <button data-q="RAG против векторных баз данных">RAG против векторных БД</button>
+        <button data-q="Тренды мультимодального AI в 2026">Тренды мультимодального AI</button>
+        <button data-q="Что угасает в 2026 году">Что угасает в 2026?</button>
+        <button data-q="Reasoning-модели для кодинга">Reasoning-модели для кода</button>
+      </div>
+      <div class="trending">
+        <span>🔥</span><span class="trend-l">В тренде сейчас</span>
+        <span id="trend-chips"></span>
+      </div>
+    </header>
+
+    <div class="switcher">
+      <button id="tab-map" class="on">Hype-карта</button>
+      <button id="tab-graph">Граф связей</button>
+    </div>
+
+    <div class="stage" id="stage-map">
+      <div class="eyebrow">Кривая хайпа · в реальном времени</div>
+      <canvas id="map"></canvas>
+    </div>
+    <div class="stage" id="stage-graph" style="display:none">
+      <div class="eyebrow">Граф связей · колесо — зум, тяни фон — пан, даблклик — сброс</div>
+      <canvas id="graph"></canvas>
+    </div>
+
+    <div class="legend" id="legend-map">
+      <span style="color:#94A3B8"><i></i>Технологический триггер</span>
+      <span style="color:#FB923C"><i></i>Пик завышенных ожиданий</span>
+      <span style="color:#F87171"><i></i>Дно разочарования</span>
+      <span style="color:#60A5FA"><i></i>Склон просветления</span>
+      <span style="color:#4ADE80"><i></i>Плато продуктивности</span>
+    </div>
+    <div class="legend" id="legend-graph" style="display:none">
+      <span style="color:#C084FC"><i></i>Технология</span>
+      <span style="color:#F0ABFC"><i></i>Парадигма</span>
+      <span style="color:#FB923C"><i></i>Инфраструктура</span>
+    </div>
+
+    <section class="movers">
+      <h2 class="movers-h">Крупные <span class="em">движения</span> <span class="movers-sub">— концепты, недавно сменившие фазу</span></h2>
+      <div class="movers-grid" id="movers"></div>
+    </section>
+  </div>
+  <div id="tip" class="tip" hidden></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
