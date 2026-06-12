@@ -213,7 +213,20 @@ function wireTry() {
 }
 function renderTrending(rows) {
   const el = document.getElementById('trend-chips'); if (!el) return;
-  const top = rows.slice().sort((a, b) => Math.abs(b.velocity || 0) - Math.abs(a.velocity || 0)).slice(0, 4);
+  const vel = r => Number(r.velocity) || 0;
+  const recent = r => Number(r.recent_papers) || 0;
+  const byHeat = (a, b) => vel(b) - vel(a) || recent(b) - recent(a);
+  // «на пике»: сначала фаза peak, затем slope (восхождение), затем растущие.
+  // НЕ по модулю velocity — иначе наверх лезут падающие и шум малых выборок.
+  const peak = rows.filter(r => r.phase === 'peak').sort(byHeat);
+  const slope = rows.filter(r => r.phase === 'slope').sort(byHeat);
+  const rising = rows.filter(r => vel(r) > 0).sort(byHeat);
+  const seen = new Set(), top = [];
+  for (const r of [...peak, ...slope, ...rising]) {
+    if (seen.has(r.slug)) continue;
+    seen.add(r.slug); top.push(r);
+    if (top.length === 4) break;
+  }
   el.innerHTML = top.map(r => {
     const ph = PHASES[r.phase] || { color: '#C084FC' };
     return `<a class="trend-chip" href="/concept.html?slug=${encodeURIComponent(r.slug)}"><i style="background:${ph.color};box-shadow:0 0 8px ${ph.color}"></i>${escapeHtml(r.canonical_name)}</a>`;
