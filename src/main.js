@@ -252,6 +252,47 @@ async function renderMovers() {
   } catch (_) { /* movers optional */ }
 }
 
+const SOURCE_LABEL = {
+  aiworldjournal: 'AI World Journal', venturebeat: 'VentureBeat', techcrunch_ai: 'TechCrunch',
+  crunchbase: 'Crunchbase', habr: 'Habr', vc_ru: 'vc.ru', hn: 'Hacker News', a16z: 'a16z',
+};
+function prettySource(s) { return SOURCE_LABEL[s] || s; }
+function safeUrl(u) { return (typeof u === 'string' && /^https?:\/\//i.test(u)) ? u : '#'; }
+function relTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso); if (isNaN(d.getTime())) return '';
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 0) return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  if (diff < 3600) return `${Math.max(1, Math.round(diff / 60))} мин назад`;
+  if (diff < 86400) return `${Math.round(diff / 3600)} ч назад`;
+  if (diff < 7 * 86400) return `${Math.round(diff / 86400)} дн назад`;
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+async function renderNews() {
+  const el = document.getElementById('news'); if (!el) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_news`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_limit: 9 }),
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return;
+    el.innerHTML = rows.map(n => `
+      <a class="nw-card" href="${escapeHtml(safeUrl(n.url))}" target="_blank" rel="noopener noreferrer">
+        <div class="nw-top">
+          <span class="nw-src">${escapeHtml(prettySource(n.source_name))}</span>
+          <span class="nw-lang">${escapeHtml((n.language || '').toUpperCase())}</span>
+        </div>
+        <div class="nw-title">${escapeHtml(n.title)}</div>
+        ${n.excerpt ? `<div class="nw-excerpt">${escapeHtml(n.excerpt)}</div>` : ''}
+        <div class="nw-date">${escapeHtml(relTime(n.published_at))}</div>
+      </a>`).join('');
+  } catch (_) { /* news optional */ }
+}
+
 function setStats(count, updated) {
   const c = document.getElementById('stat-count'), u = document.getElementById('stat-updated');
   if (c) c.textContent = count;
@@ -276,6 +317,7 @@ async function fetchHype() {
   wireSwitcher();
   wireTry();
   renderMovers();
+  renderNews();
   resize();
   window.addEventListener('resize', () => { if (mapVisible) resize(); });
   canvas.addEventListener('mousemove', onMove);
