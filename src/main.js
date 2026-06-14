@@ -318,6 +318,29 @@ async function renderRecentQueries() {
   } catch (_) { /* recent queries optional */ }
 }
 
+async function renderFreshConcepts() {
+  const sec = document.getElementById('fresh');
+  const grid = document.getElementById('fresh-grid');
+  if (!sec || !grid) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_fresh_concepts`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_limit: 8 }),
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return;
+    grid.innerHTML = rows.map(c => `
+      <a class="fr-card" href="/concept.html?slug=${encodeURIComponent(c.slug)}">
+        <div class="fr-name">${escapeHtml(c.canonical_name)}</div>
+        ${phasePill(c.phase)}
+        ${c.short_description ? `<div class="fr-desc">${escapeHtml(c.short_description)}</div>` : ''}
+      </a>`).join('');
+    sec.style.display = '';
+  } catch (_) { /* fresh concepts optional */ }
+}
+
 function setStats(count, updated) {
   const c = document.getElementById('stat-count'), u = document.getElementById('stat-updated');
   if (c) c.textContent = count;
@@ -344,6 +367,7 @@ async function fetchHype() {
   renderMovers();
   renderNews();
   renderRecentQueries();
+  renderFreshConcepts();
   resize();
   window.addEventListener('resize', () => { if (mapVisible) resize(); });
   canvas.addEventListener('mousemove', onMove);
