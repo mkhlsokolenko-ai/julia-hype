@@ -105,6 +105,17 @@
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .nw-date { font-family: 'Space Grotesk', monospace; font-size: 12px; color: var(--dim); margin-top: auto; }
 
+    .about { margin-top: 8px; margin-bottom: 8px; }
+    .about-h { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.4px; }
+    .about-h .about-sub { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px; color: var(--muted); }
+    .about-lead { margin: 8px 0 18px; font-size: 15px; line-height: 1.55; color: var(--muted); max-width: 720px; }
+    .about-lead b { color: var(--text); font-weight: 600; }
+    .about-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .about-card { padding: 18px 20px; border-radius: 16px; background: rgba(255,255,255,.025); border: 1px solid var(--border); }
+    .about-ic { font-size: 22px; margin-bottom: 8px; }
+    .about-t { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 15.5px; margin-bottom: 6px; }
+    .about-d { font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+
     .tip { position: fixed; z-index: 50; pointer-events: none; background: rgba(20,12,42,.97); border: 1px solid rgba(192,132,252,.35);
       border-radius: 12px; padding: 11px 13px; max-width: 280px; box-shadow: 0 20px 50px -20px rgba(0,0,0,.7); backdrop-filter: blur(6px); }
     .tip-name { font-weight: 700; font-size: 14px; margin-bottom: 5px; color: #fff; }
@@ -139,6 +150,28 @@
         <span id="trend-chips"></span>
       </div>
     </header>
+
+    <section class="about">
+      <h2 class="about-h">Что это <span class="about-sub">— и зачем</span></h2>
+      <p class="about-lead">JULIA показывает <b>зрелость и движение AI-технологий</b>: на каком этапе каждая идея, куда развивается и что с чем связано — чтобы ориентироваться в трендах, не перечитывая сотни статей. Данные собираются из научных публикаций, новостей и сигналов сообщества.</p>
+      <div class="about-grid">
+        <div class="about-card">
+          <div class="about-ic">📈</div>
+          <div class="about-t">Карта зрелости</div>
+          <div class="about-d">Каждый концепт на кривой Gartner: триггер → пик → дно → склон → плато. Видно, что на взлёте, а что угасает.</div>
+        </div>
+        <div class="about-card">
+          <div class="about-ic">🧬</div>
+          <div class="about-t">Граф родословной</div>
+          <div class="about-d">Как технологии связаны и из чего выросли — эволюция идей и зависимости между ними.</div>
+        </div>
+        <div class="about-card">
+          <div class="about-ic">🔍</div>
+          <div class="about-t">Поиск с источниками</div>
+          <div class="about-d">Спросите про любой тренд — ответ соберётся из статей и сигналов сообщества, со ссылками на источники.</div>
+        </div>
+      </div>
+    </section>
 
     <div class="switcher">
       <button id="tab-map" class="on">Hype-карта</button>
