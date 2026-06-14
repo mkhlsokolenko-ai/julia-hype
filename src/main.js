@@ -293,6 +293,31 @@ async function renderNews() {
   } catch (_) { /* news optional */ }
 }
 
+async function renderRecentQueries() {
+  const sec = document.getElementById('recentq');
+  const wrap = document.getElementById('recentq-chips');
+  if (!sec || !wrap) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_recent_queries`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_limit: 10 }),
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return;
+    wrap.innerHTML = rows.map(r =>
+      `<button class="recentq-chip" data-q="${escapeHtml(r.query)}">${escapeHtml(r.query)}</button>`
+    ).join('');
+    wrap.querySelectorAll('.recentq-chip').forEach(b =>
+      b.addEventListener('click', () => {
+        const v = b.getAttribute('data-q');
+        if (v) window.location.href = `/search.html?q=${encodeURIComponent(v)}`;
+      }));
+    sec.style.display = '';
+  } catch (_) { /* recent queries optional */ }
+}
+
 function setStats(count, updated) {
   const c = document.getElementById('stat-count'), u = document.getElementById('stat-updated');
   if (c) c.textContent = count;
@@ -318,6 +343,7 @@ async function fetchHype() {
   wireTry();
   renderMovers();
   renderNews();
+  renderRecentQueries();
   resize();
   window.addEventListener('resize', () => { if (mapVisible) resize(); });
   canvas.addEventListener('mousemove', onMove);
