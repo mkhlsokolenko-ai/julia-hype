@@ -307,18 +307,19 @@ function renderTrending(rows) {
     return `<a class="trend-chip" href="/concept.html?slug=${encodeURIComponent(r.slug)}"><i style="background:${ph.color};box-shadow:0 0 8px ${ph.color}"></i>${escapeHtml(r.canonical_name)}</a>`;
   }).join('');
 }
-async function renderMovers() {
+async function renderMovers(mode = 'big') {
   const el = document.getElementById('movers'); if (!el) return;
+  document.querySelectorAll('.mv-tab').forEach(b => b.classList.toggle('on', b.getAttribute('data-mode') === mode));
+  const fn = mode === 'recent' ? 'julia_public_phase_changes' : 'julia_public_movers';
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_movers`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
       method: 'POST',
       headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_limit: 6 }),
+      body: JSON.stringify({ p_limit: 10 }),
     });
     if (!res.ok) return;
     const rows = await res.json();
-    if (!Array.isArray(rows) || !rows.length) return;
-    el.innerHTML = rows.map(m => `
+    el.innerHTML = (Array.isArray(rows) ? rows : []).map(m => `
       <a class="mv-card" href="/concept.html?slug=${encodeURIComponent(m.slug)}">
         <div class="mv-name">${escapeHtml(m.canonical_name)}</div>
         <div class="mv-trans">${phasePill(m.from_phase)}<span class="mv-arr">→</span>${phasePill(m.to_phase)}</div>
@@ -739,6 +740,8 @@ async function fetchHype() {
   renderSuggestions();
   wireCompare();
   renderMovers();
+  document.querySelectorAll('.mv-tab').forEach(b =>
+    b.addEventListener('click', () => renderMovers(b.getAttribute('data-mode'))));
   renderNews();
   renderDigest();
   renderFreshConcepts();
