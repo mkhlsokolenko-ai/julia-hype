@@ -77,6 +77,12 @@
     .movers-h { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: -.5px; }
     .movers-h .em { background: linear-gradient(96deg,#F0ABFC,#C084FC); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .movers-h .movers-sub { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 15px; letter-spacing: 0; color: var(--muted); }
+    .movers-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+    .mv-tabs { display: flex; gap: 8px; flex: none; }
+    .mv-tab { background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--muted); border-radius: 999px;
+      padding: 6px 14px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all .15s; }
+    .mv-tab:hover { border-color: rgba(192,132,252,.45); color: var(--text); }
+    .mv-tab.on { background: linear-gradient(135deg,#F0ABFC,#C084FC); color: #160E2E; border-color: transparent; }
     .movers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 20px; }
     .mv-card { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px; border-radius: 16px;
       background: rgba(255,255,255,.025); border: 1px solid var(--border); text-decoration: none; color: var(--text); transition: border-color .15s, transform .15s; }
@@ -307,7 +313,13 @@
     </section>
 
     <section class="movers">
-      <h2 class="movers-h">Крупные <span class="em">движения</span> <span class="movers-sub">— концепты, недавно сменившие фазу</span></h2>
+      <div class="movers-top">
+        <h2 class="movers-h">Движение <span class="em">по фазам</span></h2>
+        <div class="mv-tabs">
+          <button class="mv-tab on" data-mode="big" type="button">Крупные</button>
+          <button class="mv-tab" data-mode="recent" type="button">Недавние</button>
+        </div>
+      </div>
       <div class="movers-grid" id="movers"></div>
     </section>
   </div>
