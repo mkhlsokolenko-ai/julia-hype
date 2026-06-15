@@ -327,6 +327,26 @@ async function askConcept(name, question) {
   }
 }
 
+function buildSourcesHtml(sources) {
+  if (!Array.isArray(sources) || !sources.length) return '';
+  const SRC = { aiworldjournal: 'AI World Journal', venturebeat: 'VentureBeat', techcrunch_ai: 'TechCrunch', crunchbase: 'Crunchbase', habr: 'Habr', vc_ru: 'vc.ru', hn: 'Hacker News', a16z: 'a16z', arxiv: 'arXiv', openalex: 'OpenAlex', jair: 'JAIR', aijourn: 'AIjourn' };
+  const pretty = s => SRC[s] || s || '—';
+  const safe = u => (typeof u === 'string' && /^https?:\/\//i.test(u)) ? u : null;
+  const rows = sources.map(s => {
+    const u = safe(s.url);
+    const date = s.published_at ? fmtMonth(s.published_at) : '';
+    const inner = `<span class="src-t">${esc(s.title || '—')}</span><span class="src-m">${esc(pretty(s.source_name))}${date ? ' · ' + esc(date) : ''}</span>`;
+    return u
+      ? `<a class="src-row" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
+      : `<div class="src-row">${inner}</div>`;
+  }).join('');
+  return `
+    <section class="section">
+      <h2 class="section-h">📚 Ключевые <span class="em">источники</span></h2>
+      <div class="glass src-list">${rows}</div>
+    </section>`;
+}
+
 function conceptVerdict(c, s, a) {
   const v = Number(c.velocity) || 0;                          // импульс г/г, -1..1
   const adoption = a ? Math.max(0, Math.min(1, Number(a.composite_adoption_score) || 0)) : null;
@@ -365,7 +385,7 @@ function conceptVerdict(c, s, a) {
   return { text, tone };
 }
 
-function render(c, s, a, l, h, vser) {
+function render(c, s, a, l, h, vser, src) {
   const ph = PHASES[c.phase] || PHASES.unknown;
   const v = Number(c.velocity) || 0;
   const sigs = s ? buildSignals(s) : null;
@@ -408,7 +428,8 @@ function render(c, s, a, l, h, vser) {
     ${buildSparklineHtml(vser)}
     ${sigHtml}
     ${buildAdoptionHtml(a)}
-    ${buildLineageHtml(l, c.canonical_name)}`;
+    ${buildLineageHtml(l, c.canonical_name)}
+    ${buildSourcesHtml(src)}`;
   wireAsk(c.canonical_name);
 }
 
@@ -422,17 +443,18 @@ function showError(msg) {
   const slug = getSlug();
   if (!slug) { showError('Не указан концепт.'); return; }
   try {
-    const [cRows, sRows, aRows, lRows, hRows, vRows] = await Promise.all([
+    const [cRows, sRows, aRows, lRows, hRows, vRows, srcRows] = await Promise.all([
       rpc('julia_public_concept', { p_slug: slug }),
       rpc('julia_public_signals', { p_slug: slug }),
       rpc('julia_public_adoption', { p_slug: slug }).catch(() => null),
       rpc('julia_public_lineage', { p_slug: slug }).catch(() => null),
       rpc('julia_public_phase_history', { p_slug: slug }).catch(() => null),
       rpc('julia_public_velocity_series', { p_slug: slug }).catch(() => null),
+      rpc('julia_public_concept_sources', { p_slug: slug }).catch(() => null),
     ]);
     const c = Array.isArray(cRows) && cRows[0];
     if (!c) { showError('Концепт не найден.'); return; }
-    render(c, Array.isArray(sRows) ? sRows[0] : null, Array.isArray(aRows) ? aRows[0] : null, Array.isArray(lRows) ? lRows : null, Array.isArray(hRows) ? hRows : null, Array.isArray(vRows) ? vRows : null);
+    render(c, Array.isArray(sRows) ? sRows[0] : null, Array.isArray(aRows) ? aRows[0] : null, Array.isArray(lRows) ? lRows : null, Array.isArray(hRows) ? hRows : null, Array.isArray(vRows) ? vRows : null, Array.isArray(srcRows) ? srcRows : null);
     document.title = `JULIA — ${c.canonical_name}`;
   } catch (err) {
     showError(err.message || String(err));
