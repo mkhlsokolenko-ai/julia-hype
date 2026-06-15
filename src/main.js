@@ -80,6 +80,7 @@ function glowSprite(color) {
 
 let canvas, ctx, dpr = 1, cssW = W, cssH = H;
 let placed = [], hovered = -1, intro = 0, reduced = false, mapVisible = true;
+let compareMode = false, compareSel = [];
 
 function resize() {
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -127,6 +128,9 @@ function frame(ts) {
     ctx.fillStyle = ph.color;
     ctx.beginPath(); ctx.arc(d.x, d.y, r, 0, 7); ctx.fill();
     if (isH) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(d.x, d.y, r + 4, 0, 7); ctx.stroke(); }
+    if (compareMode && compareSel.some(s => s.slug === d.slug)) {
+      ctx.strokeStyle = '#F0ABFC'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(d.x, d.y, r + 7, 0, 7); ctx.stroke();
+    }
   });
   ctx.globalAlpha = 1;
 
@@ -169,7 +173,21 @@ function onMove(e) {
   } else tip.hidden = true;
 }
 function onLeave() { hovered = -1; const tip = document.getElementById('tip'); if (tip) tip.hidden = true; }
-function onClick() { if (hovered >= 0) { const d = placed[hovered]; if (d.slug) window.location.href = `/concept.html?slug=${encodeURIComponent(d.slug)}`; } }
+function onClick() {
+  if (hovered < 0) return;
+  const d = placed[hovered];
+  if (!d || !d.slug) return;
+  if (compareMode) { toggleCompareSel(d); return; }
+  window.location.href = `/concept.html?slug=${encodeURIComponent(d.slug)}`;
+}
+
+function toggleCompareSel(d) {
+  const i = compareSel.findIndex(s => s.slug === d.slug);
+  if (i >= 0) compareSel.splice(i, 1);
+  else { if (compareSel.length >= 2) compareSel.shift(); compareSel.push({ slug: d.slug, name: d.canonical_name }); }
+  updateCompareTray();
+  if (compareSel.length === 2) openCompareModal(compareSel[0], compareSel[1]);
+}
 
 function wireSearch() {
   const q = document.getElementById('q'), go = document.getElementById('go');
@@ -526,6 +544,93 @@ async function renderPhaseFlow() {
   } catch (_) { /* flow optional */ }
 }
 
+function wireCompare() {
+  const btn = document.getElementById('cmp-toggle');
+  if (btn) btn.addEventListener('click', () => {
+    compareMode = !compareMode;
+    compareSel = [];
+    btn.classList.toggle('on', compareMode);
+    btn.textContent = compareMode ? '✕ Выйти' : '⚖ Сравнить';
+    updateCompareTray();
+  });
+  const close = document.getElementById('cmp-close'), backdrop = document.getElementById('cmp-backdrop');
+  if (close) close.addEventListener('click', closeCompareModal);
+  if (backdrop) backdrop.addEventListener('click', closeCompareModal);
+}
+
+function updateCompareTray() {
+  const tray = document.getElementById('cmp-tray');
+  if (!tray) return;
+  if (!compareMode) { tray.hidden = true; tray.innerHTML = ''; return; }
+  tray.hidden = false;
+  const chips = compareSel.map(s => `<span class="cmp-chip">${escapeHtml(s.name)}</span>`).join('');
+  tray.innerHTML = `<span class="cmp-hint">Кликни 2 концепта на карте</span>${chips}`;
+}
+
+function closeCompareModal() {
+  const modal = document.getElementById('compare-modal');
+  if (modal) modal.hidden = true;
+  compareSel = [];
+  updateCompareTray();
+}
+
+async function openCompareModal(a, b) {
+  const modal = document.getElementById('compare-modal'), body = document.getElementById('cmp-body');
+  if (!modal || !body) return;
+  modal.hidden = false;
+  body.innerHTML = '<div class="cmp-loading">Сравниваю…</div>';
+  const call = (fn, slug) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_slug: slug }),
+  }).then(r => r.ok ? r.json() : null).then(x => Array.isArray(x) ? x[0] : x).catch(() => null);
+  try {
+    const [ca, sa, aa, cb, sb, ab] = await Promise.all([
+      call('julia_public_concept', a.slug), call('julia_public_signals', a.slug), call('julia_public_adoption', a.slug),
+      call('julia_public_concept', b.slug), call('julia_public_signals', b.slug), call('julia_public_adoption', b.slug),
+    ]);
+    if (!ca || !cb) { body.innerHTML = '<div class="cmp-loading">Не удалось загрузить данные.</div>'; return; }
+    body.innerHTML = renderCompare({ c: ca, s: sa, a: aa, name: a.name }, { c: cb, s: sb, a: ab, name: b.name });
+  } catch (_) {
+    body.innerHTML = '<div class="cmp-loading">Ошибка сравнения.</div>';
+  }
+}
+
+function renderCompare(A, B) {
+  const PH = ph => (PHASES[ph] && PHASES[ph].label) || '—';
+  const phc = ph => (PHASES[ph] && PHASES[ph].color) || '#6B5E93';
+  const num = v => (v == null || !isFinite(Number(v))) ? '—' : v;
+  const vel = c => { const v = Number(c.velocity) || 0; return `${v > 0 ? '+' : ''}${Math.round(v * 100)}%`; };
+  const adopt = a => (a && a.composite_adoption_score != null) ? `${Math.round(Number(a.composite_adoption_score) * 100)}% · ${a.adoption_stage || '—'}` : '—';
+  const usd = n => { n = Number(n) || 0; if (!n) return '—'; if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B'; if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M'; if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'k'; return '$' + n; };
+  const rows = [
+    ['Фаза', `<span style="color:${phc(A.c.phase)}">${PH(A.c.phase)}</span>`, `<span style="color:${phc(B.c.phase)}">${PH(B.c.phase)}</span>`],
+    ['Импульс (г/г)', vel(A.c), vel(B.c)],
+    ['Свежие статьи', num(A.s && A.s.recent_papers), num(B.s && B.s.recent_papers)],
+    ['Внедрение', adopt(A.a), adopt(B.a)],
+    ['Патенты · 180д', num(A.a && A.a.patent_filings_180d), num(B.a && B.a.patent_filings_180d)],
+    ['Финансирование', usd(A.a && A.a.total_funding_usd), usd(B.a && B.a.total_funding_usd)],
+    ['Вакансии · 30д', num(A.a && A.a.hiring_mentions_30d), num(B.a && B.a.hiring_mentions_30d)],
+  ];
+  return `<table class="cmp-table">
+      <thead><tr><th></th><th>${escapeHtml(A.name)}</th><th>${escapeHtml(B.name)}</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><th>${r[0]}</th><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="cmp-verdict"><span class="verdict-ic">💡</span><span>${escapeHtml(compareVerdict(A, B))}</span></div>`;
+}
+
+function compareVerdict(A, B) {
+  const ad = x => (x.a && x.a.composite_adoption_score != null) ? Number(x.a.composite_adoption_score) : 0;
+  const adA = ad(A), adB = ad(B), vA = Number(A.c.velocity) || 0, vB = Number(B.c.velocity) || 0;
+  const mature = adA === adB ? null : (adA > adB ? A : B);
+  const faster = vA === vB ? null : (vA > vB ? A : B);
+  if (mature && faster && mature === faster) return `${mature.name} впереди и по зрелости, и по импульсу — явный фаворит.`;
+  if (mature && faster) return `${mature.name} зрелее — внедрять сейчас; ${faster.name} разгоняется быстрее — ранняя ставка.`;
+  if (mature) return `${mature.name} ближе к внедрению; по импульсу — паритет.`;
+  if (faster) return `${faster.name} разгоняется быстрее; по зрелости — паритет.`;
+  return 'Концепты сопоставимы по зрелости и импульсу.';
+}
+
 function setStats(count, updated) {
   const c = document.getElementById('stat-count'), u = document.getElementById('stat-updated');
   if (c) c.textContent = count;
@@ -549,6 +654,7 @@ async function fetchHype() {
   wireSearch();
   wireSwitcher();
   wireTry();
+  wireCompare();
   renderMovers();
   renderNews();
   renderDigest();
