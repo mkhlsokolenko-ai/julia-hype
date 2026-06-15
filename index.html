@@ -158,6 +158,34 @@
     .flow-wrap svg { width: 100%; height: auto; display: block; }
     .flow-strand { cursor: pointer; transition: fill-opacity .12s; }
     .flow-strand:hover { fill-opacity: .9 !important; }
+
+    .map-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .cmp-btn { flex: none; background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 999px; padding: 7px 14px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all .15s; }
+    .cmp-btn:hover { border-color: rgba(192,132,252,.45); color: var(--text); }
+    .cmp-btn.on { background: linear-gradient(135deg,#F0ABFC,#C084FC); color: #160E2E; border-color: transparent; }
+    .cmp-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+    .cmp-hint { font-size: 12.5px; color: var(--muted); }
+    .cmp-chip { font-size: 12.5px; color: var(--text); background: rgba(240,171,252,.12); border: 1px solid rgba(240,171,252,.4); border-radius: 999px; padding: 4px 11px; }
+
+    .cmp-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .cmp-backdrop { position: absolute; inset: 0; background: rgba(10,6,22,.72); backdrop-filter: blur(4px); }
+    .cmp-card { position: relative; width: 100%; max-width: 620px; max-height: 88vh; overflow: auto;
+      background: #160E2E; border: 1px solid var(--border); border-radius: 20px; padding: 24px 26px; box-shadow: 0 40px 120px -30px rgba(0,0,0,.9); }
+    .cmp-close { position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
+      background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; font-size: 13px; }
+    .cmp-close:hover { color: var(--text); border-color: rgba(192,132,252,.45); }
+    .cmp-modal-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 18px; }
+    .cmp-loading { color: var(--muted); padding: 30px 0; text-align: center; }
+    .cmp-table { width: 100%; border-collapse: collapse; }
+    .cmp-table thead th { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); text-align: center; padding: 0 8px 12px; }
+    .cmp-table thead th:first-child { width: 34%; }
+    .cmp-table tbody th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--muted); padding: 9px 8px; }
+    .cmp-table tbody td { text-align: center; font-size: 13.5px; color: var(--text); padding: 9px 8px; font-family: 'Space Grotesk', monospace; }
+    .cmp-table tbody tr + tr { border-top: 1px solid var(--border); }
+    .cmp-verdict { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; padding: 12px 16px; border-radius: 14px;
+      background: rgba(192,132,252,.1); border: 1px solid rgba(192,132,252,.32); font-size: 14.5px; line-height: 1.5; color: var(--text); }
+    .cmp-verdict .verdict-ic { font-size: 16px; flex: none; }
     .gap-pt { cursor: pointer; transition: opacity .12s; }
     .gap-pt:hover { opacity: 1 !important; }
 
@@ -232,7 +260,11 @@
     </div>
 
     <div class="stage" id="stage-map">
-      <div class="eyebrow">Кривая хайпа · в реальном времени</div>
+      <div class="map-top">
+        <div class="eyebrow">Кривая хайпа · в реальном времени</div>
+        <button id="cmp-toggle" class="cmp-btn" type="button">⚖ Сравнить</button>
+      </div>
+      <div id="cmp-tray" class="cmp-tray" hidden></div>
       <canvas id="map"></canvas>
     </div>
     <div class="stage" id="stage-graph" style="display:none">
@@ -288,6 +320,14 @@
       <h2 class="movers-h">Крупные <span class="em">движения</span> <span class="movers-sub">— концепты, недавно сменившие фазу</span></h2>
       <div class="movers-grid" id="movers"></div>
     </section>
+  </div>
+  <div id="compare-modal" class="cmp-modal" hidden>
+    <div class="cmp-backdrop" id="cmp-backdrop"></div>
+    <div class="cmp-card">
+      <button class="cmp-close" id="cmp-close" type="button" aria-label="Закрыть">✕</button>
+      <div class="cmp-modal-title">Сравнение концептов</div>
+      <div id="cmp-body"></div>
+    </div>
   </div>
   <div id="tip" class="tip" hidden></div>
   <script type="module" src="/src/main.js"></script>
