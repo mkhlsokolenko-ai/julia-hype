@@ -369,6 +369,60 @@ async function renderDigest() {
   } catch (_) { /* digest optional */ }
 }
 
+async function renderRealityGap() {
+  const sec = document.getElementById('gap');
+  const wrap = document.getElementById('gap-wrap');
+  if (!sec || !wrap) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_reality_gap`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_limit: 300 }),
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length < 3) return;
+    const pts = rows.map(r => ({
+      slug: r.slug, name: r.canonical_name, phase: r.phase,
+      v: Math.max(-1, Math.min(1, Number(r.velocity) || 0)),
+      a: Number(r.adoption), stage: r.adoption_stage || '',
+    })).filter(p => isFinite(p.a));
+    if (pts.length < 3) return;
+
+    const W = 760, H = 480, ml = 60, mr = 24, mt = 30, mb = 46;
+    const x0 = ml, x1 = W - mr, y0 = mt, y1 = H - mb;
+    const aMin = 0.15, aMax = 0.80;
+    const ax = a => x0 + (Math.max(aMin, Math.min(aMax, a)) - aMin) / (aMax - aMin) * (x1 - x0);
+    const vy = v => y0 + (1 - v) / 2 * (y1 - y0);
+    const sorted = pts.map(p => p.a).sort((m, n) => m - n);
+    const aMed = sorted[Math.floor(sorted.length / 2)];
+    const xMed = ax(aMed), yZero = vy(0);
+    const phaseColor = ph => (PHASES[ph] && PHASES[ph].color) || '#6B5E93';
+
+    const circles = pts.map(p => {
+      const cx = ax(p.a).toFixed(1), cy = vy(p.v).toFixed(1), col = phaseColor(p.phase);
+      return `<a href="/concept.html?slug=${encodeURIComponent(p.slug)}"><circle class="gap-pt" cx="${cx}" cy="${cy}" r="5.5" fill="${col}" fill-opacity="0.82" stroke="${col}" stroke-opacity="0.4"><title>${escapeHtml(p.name)} — внедрение ${p.a.toFixed(2)}, скорость ${p.v.toFixed(2)}${p.stage ? ' • ' + escapeHtml(p.stage) : ''}</title></circle></a>`;
+    }).join('');
+
+    const txt = (x, y, s, anchor, op) => `<text x="${x}" y="${y}" fill="var(--muted)" font-family="Inter,sans-serif" font-size="12" text-anchor="${anchor}" opacity="${op}">${s}</text>`;
+    const cy2 = ((y0 + y1) / 2).toFixed(1);
+
+    wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Разрыв наука-внедрение">
+      <line x1="${x0}" y1="${yZero.toFixed(1)}" x2="${x1}" y2="${yZero.toFixed(1)}" stroke="var(--border)" stroke-dasharray="4 4"/>
+      <line x1="${xMed.toFixed(1)}" y1="${y0}" x2="${xMed.toFixed(1)}" y2="${y1}" stroke="var(--border)" stroke-dasharray="4 4"/>
+      <rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="none" stroke="var(--border)"/>
+      ${txt(x0 + 10, y0 + 18, 'Наука впереди внедрения', 'start', '0.5')}
+      ${txt(x1 - 10, y1 - 12, 'Внедрены · наука остывает', 'end', '0.5')}
+      ${txt(x1 - 10, y0 + 18, 'Горячие', 'end', '0.32')}
+      ${txt(x0 + 10, y1 - 12, 'Нишевые / угасают', 'start', '0.32')}
+      ${txt((x0 + x1) / 2, H - 14, 'Внедрение (adoption) →', 'middle', '0.7')}
+      <text x="18" y="${cy2}" fill="var(--muted)" font-family="Inter,sans-serif" font-size="12" text-anchor="middle" opacity="0.7" transform="rotate(-90 18 ${cy2})">← скорость науки →</text>
+      ${circles}
+    </svg>`;
+    sec.style.display = '';
+  } catch (_) { /* reality-gap optional */ }
+}
+
 function setStats(count, updated) {
   const c = document.getElementById('stat-count'), u = document.getElementById('stat-updated');
   if (c) c.textContent = count;
@@ -395,6 +449,7 @@ async function fetchHype() {
   renderMovers();
   renderNews();
   renderDigest();
+  renderRealityGap();
   renderRecentQueries();
   renderFreshConcepts();
   resize();
