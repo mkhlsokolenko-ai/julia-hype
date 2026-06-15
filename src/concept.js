@@ -223,7 +223,43 @@ function buildJourneyHtml(hist) {
     </section>`;
 }
 
-function render(c, s, a, l, h) {
+function buildSparklineHtml(series) {
+  if (!Array.isArray(series) || series.length < 3) return '';
+  const pts = series
+    .map(r => ({ m: r.snapshot_month, p: Number(r.recent_papers) || 0 }))
+    .filter(p => p.m);
+  if (pts.length < 3) return '';
+  const W = 600, H = 96, pad = 8, n = pts.length;
+  const maxP = Math.max(...pts.map(p => p.p), 1);
+  const x = i => pad + (i / (n - 1)) * (W - 2 * pad);
+  const y = p => H - pad - (p / maxP) * (H - 2 * pad);
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(p.p).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(n - 1).toFixed(1)} ${(H - pad).toFixed(1)} L${x(0).toFixed(1)} ${(H - pad).toFixed(1)} Z`;
+  const last = pts[n - 1];
+  const peak = pts.reduce((a, b) => (b.p > a.p ? b : a), pts[0]);
+  return `
+    <section class="section">
+      <h2 class="section-h">📊 Исследовательская <span class="em">активность</span></h2>
+      <div class="glass spark-card">
+        <div class="spark-meta"><span>статей в месяц</span><span>${fmtMonth(pts[0].m)} — ${fmtMonth(last.m)}</span></div>
+        <svg class="spark" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Динамика публикаций по месяцам">
+          <defs><linearGradient id="sparkg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="${PURPLE}" stop-opacity="0.32"/>
+            <stop offset="1" stop-color="${PURPLE}" stop-opacity="0"/>
+          </linearGradient></defs>
+          <path d="${area}" fill="url(#sparkg)"/>
+          <path d="${line}" fill="none" stroke="${PURPLE}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="${x(n - 1).toFixed(1)}" cy="${y(last.p).toFixed(1)}" r="3.6" fill="${PURPLE}"/>
+        </svg>
+        <div class="spark-stats">
+          <div><span class="sp-num">${last.p}</span><span class="sp-lbl">сейчас</span></div>
+          <div><span class="sp-num">${peak.p}</span><span class="sp-lbl">пик · ${fmtMonth(peak.m)}</span></div>
+        </div>
+      </div>
+    </section>`;
+}
+
+function render(c, s, a, l, h, vser) {
   const ph = PHASES[c.phase] || PHASES.unknown;
   const v = Number(c.velocity) || 0;
   const sigs = s ? buildSignals(s) : null;
@@ -258,6 +294,7 @@ function render(c, s, a, l, h) {
       ${c.short_description ? `<p class="desc">${esc(c.short_description)}</p>` : ''}
     </section>
     ${buildJourneyHtml(h)}
+    ${buildSparklineHtml(vser)}
     ${sigHtml}
     ${buildAdoptionHtml(a)}
     ${buildLineageHtml(l, c.canonical_name)}`;
@@ -273,16 +310,17 @@ function showError(msg) {
   const slug = getSlug();
   if (!slug) { showError('Не указан концепт.'); return; }
   try {
-    const [cRows, sRows, aRows, lRows, hRows] = await Promise.all([
+    const [cRows, sRows, aRows, lRows, hRows, vRows] = await Promise.all([
       rpc('julia_public_concept', { p_slug: slug }),
       rpc('julia_public_signals', { p_slug: slug }),
       rpc('julia_public_adoption', { p_slug: slug }).catch(() => null),
       rpc('julia_public_lineage', { p_slug: slug }).catch(() => null),
       rpc('julia_public_phase_history', { p_slug: slug }).catch(() => null),
+      rpc('julia_public_velocity_series', { p_slug: slug }).catch(() => null),
     ]);
     const c = Array.isArray(cRows) && cRows[0];
     if (!c) { showError('Концепт не найден.'); return; }
-    render(c, Array.isArray(sRows) ? sRows[0] : null, Array.isArray(aRows) ? aRows[0] : null, Array.isArray(lRows) ? lRows : null, Array.isArray(hRows) ? hRows : null);
+    render(c, Array.isArray(sRows) ? sRows[0] : null, Array.isArray(aRows) ? aRows[0] : null, Array.isArray(lRows) ? lRows : null, Array.isArray(hRows) ? hRows : null, Array.isArray(vRows) ? vRows : null);
     document.title = `JULIA — ${c.canonical_name}`;
   } catch (err) {
     showError(err.message || String(err));
