@@ -116,14 +116,6 @@
     .about-t { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 15.5px; margin-bottom: 6px; }
     .about-d { font-size: 13.5px; line-height: 1.5; color: var(--muted); }
 
-    .recentq { margin-top: 56px; }
-    .recentq-h { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.4px; margin-bottom: 14px; }
-    .recentq-h .em { background: linear-gradient(96deg,#F0ABFC,#C084FC); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .recentq-chips { display: flex; flex-wrap: wrap; gap: 10px; }
-    .recentq-chip { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,.025);
-      color: var(--text); font-size: 13.5px; cursor: pointer; transition: border-color .15s, transform .15s; font-family: inherit; }
-    .recentq-chip:hover { border-color: rgba(192,132,252,.45); transform: translateY(-1px); }
-
     .fresh { margin-top: 56px; }
     .fresh-h { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -.4px; margin-bottom: 16px; }
     .fresh-h .em { background: linear-gradient(96deg,#F0ABFC,#C084FC); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -219,11 +211,8 @@
         <button id="go" aria-label="Искать">→</button>
       </div>
       <div class="try">
-        <span class="try-l">Попробуйте:</span>
-        <button data-q="RAG против векторных баз данных">RAG против векторных БД</button>
-        <button data-q="Тренды мультимодального AI в 2026">Тренды мультимодального AI</button>
-        <button data-q="Что угасает в 2026 году">Что угасает в 2026?</button>
-        <button data-q="Reasoning-модели для кодинга">Reasoning-модели для кода</button>
+        <span class="try-l" id="try-l">Попробуйте:</span>
+        <span id="try-chips"></span>
       </div>
       <div class="trending">
         <span>🔥</span><span class="trend-l">В тренде сейчас</span>
@@ -303,11 +292,6 @@
     <section class="news">
       <h2 class="news-h">Последние <span class="em">новости</span> <span class="news-sub">— из AI-медиа и сообществ</span></h2>
       <div class="news-grid" id="news"></div>
-    </section>
-
-    <section class="recentq" id="recentq" style="display:none">
-      <h2 class="recentq-h">О чём <span class="em">спрашивают</span></h2>
-      <div class="recentq-chips" id="recentq-chips"></div>
     </section>
 
     <section class="fresh" id="fresh" style="display:none">
