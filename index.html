@@ -159,12 +159,12 @@
     .flow-strand { cursor: pointer; transition: fill-opacity .12s; }
     .flow-strand:hover { fill-opacity: .9 !important; }
 
-    .map-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #cmp-toggle { position: absolute; top: 14px; right: 16px; z-index: 2; }
     .cmp-btn { flex: none; background: rgba(255,255,255,.04); border: 1px solid var(--border); color: var(--muted);
       border-radius: 999px; padding: 7px 14px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all .15s; }
     .cmp-btn:hover { border-color: rgba(192,132,252,.45); color: var(--text); }
     .cmp-btn.on { background: linear-gradient(135deg,#F0ABFC,#C084FC); color: #160E2E; border-color: transparent; }
-    .cmp-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+    .cmp-tray { position: absolute; top: 50px; right: 16px; z-index: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; max-width: 70%; }
     .cmp-hint { font-size: 12.5px; color: var(--muted); }
     .cmp-chip { font-size: 12.5px; color: var(--text); background: rgba(240,171,252,.12); border: 1px solid rgba(240,171,252,.4); border-radius: 999px; padding: 4px 11px; }
     .cmp-modal[hidden], .cmp-tray[hidden] { display: none; }
@@ -261,10 +261,8 @@
     </div>
 
     <div class="stage" id="stage-map">
-      <div class="map-top">
-        <div class="eyebrow">Кривая хайпа · в реальном времени</div>
-        <button id="cmp-toggle" class="cmp-btn" type="button">⚖ Сравнить</button>
-      </div>
+      <div class="eyebrow">Кривая хайпа · в реальном времени</div>
+      <button id="cmp-toggle" class="cmp-btn" type="button">⚖ Сравнить</button>
       <div id="cmp-tray" class="cmp-tray" hidden></div>
       <canvas id="map"></canvas>
     </div>
