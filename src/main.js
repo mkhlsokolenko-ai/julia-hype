@@ -462,34 +462,34 @@ async function renderPhaseFlow() {
       body: '{}',
     });
     if (!res.ok) return;
-    const links = await res.json();
-    if (!Array.isArray(links) || !links.length) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return;
 
-    const ORDER = ['trigger', 'peak', 'trough', 'slope', 'plateau'];
+    const ORD = ['trigger', 'peak', 'trough', 'slope', 'plateau'];
     const phName = ph => (PHASES[ph] && PHASES[ph].short) || ph;
     const phColor = ph => (PHASES[ph] && PHASES[ph].color) || '#6B5E93';
 
-    const leftTot = {}, rightTot = {};
-    let total = 0;
-    links.forEach(l => {
-      const n = Number(l.n) || 0;
-      leftTot[l.from_phase] = (leftTot[l.from_phase] || 0) + n;
-      rightTot[l.to_phase] = (rightTot[l.to_phase] || 0) + n;
-      total += n;
-    });
-    if (!total) return;
-    const leftPhases = ORDER.filter(p => leftTot[p]);
-    const rightPhases = ORDER.filter(p => rightTot[p]);
+    // sort: by origin phase, then destination phase, then name → tidy stacking
+    rows.sort((a, b) =>
+      ORD.indexOf(a.from_phase) - ORD.indexOf(b.from_phase) ||
+      ORD.indexOf(a.to_phase) - ORD.indexOf(b.to_phase) ||
+      String(a.name).localeCompare(String(b.name)));
 
-    const W = 760, H = 440, padY = 22, nodeW = 14, ml = 78, gap = 12;
+    const leftTot = {}, rightTot = {};
+    rows.forEach(r => { leftTot[r.from_phase] = (leftTot[r.from_phase] || 0) + 1; rightTot[r.to_phase] = (rightTot[r.to_phase] || 0) + 1; });
+    const total = rows.length;
+    const leftPhases = ORD.filter(p => leftTot[p]);
+    const rightPhases = ORD.filter(p => rightTot[p]);
+
+    const W = 760, H = 480, padY = 22, nodeW = 14, ml = 84, gap = 14;
     const leftX = ml, rightX = W - ml - nodeW;
     const colH = H - 2 * padY;
     const maxNodes = Math.max(leftPhases.length, rightPhases.length);
-    const vScale = (colH - (maxNodes - 1) * gap) / total;
+    const vScale = (colH - (maxNodes - 1) * gap) / total;   // px per concept
 
     const place = (phases, totals) => {
       const pos = {}; let y = padY;
-      phases.forEach(p => { const h = Math.max(2, totals[p] * vScale); pos[p] = { y, h }; y += h + gap; });
+      phases.forEach(p => { const h = totals[p] * vScale; pos[p] = { y0: y, h }; y += h + gap; });
       return pos;
     };
     const L = place(leftPhases, leftTot), R = place(rightPhases, rightTot);
@@ -497,30 +497,26 @@ async function renderPhaseFlow() {
     leftPhases.forEach(p => lOff[p] = 0);
     rightPhases.forEach(p => rOff[p] = 0);
 
-    const sorted = links.slice().sort((a, b) =>
-      ORDER.indexOf(a.from_phase) - ORDER.indexOf(b.from_phase) ||
-      ORDER.indexOf(a.to_phase) - ORDER.indexOf(b.to_phase));
-    const ribbons = sorted.map(l => {
-      const n = Number(l.n) || 0; if (!n) return '';
-      const th = n * vScale;
-      const x0 = leftX + nodeW, x1 = rightX, xc = (x0 + x1) / 2;
-      const y0 = L[l.from_phase].y + lOff[l.from_phase];
-      const y1 = R[l.to_phase].y + rOff[l.to_phase];
-      lOff[l.from_phase] += th; rOff[l.to_phase] += th;
-      const col = phColor(l.from_phase);
-      const d = `M${x0} ${y0.toFixed(1)} C${xc} ${y0.toFixed(1)}, ${xc} ${y1.toFixed(1)}, ${x1} ${y1.toFixed(1)} L${x1} ${(y1 + th).toFixed(1)} C${xc} ${(y1 + th).toFixed(1)}, ${xc} ${(y0 + th).toFixed(1)}, ${x0} ${(y0 + th).toFixed(1)} Z`;
-      const same = l.from_phase === l.to_phase ? ' (остались)' : '';
-      return `<path d="${d}" fill="${col}" fill-opacity="0.28"><title>${phName(l.from_phase)} → ${phName(l.to_phase)}: ${n}${same}</title></path>`;
+    const x0 = leftX + nodeW, x1 = rightX, xc = (x0 + x1) / 2;
+    const strands = rows.map(r => {
+      const th = vScale;
+      const yA = L[r.from_phase].y0 + lOff[r.from_phase];
+      const yB = R[r.to_phase].y0 + rOff[r.to_phase];
+      lOff[r.from_phase] += th; rOff[r.to_phase] += th;
+      const col = phColor(r.to_phase);
+      const d = `M${x0} ${yA.toFixed(1)} C${xc} ${yA.toFixed(1)}, ${xc} ${yB.toFixed(1)}, ${x1} ${yB.toFixed(1)} L${x1} ${(yB + th).toFixed(1)} C${xc} ${(yB + th).toFixed(1)}, ${xc} ${(yA + th).toFixed(1)}, ${x0} ${(yA + th).toFixed(1)} Z`;
+      const moved = r.from_phase === r.to_phase ? '' : ` (${phName(r.from_phase)}→${phName(r.to_phase)})`;
+      return `<a href="/concept.html?slug=${encodeURIComponent(r.slug)}"><path class="flow-strand" d="${d}" fill="${col}" fill-opacity="0.5"><title>${escapeHtml(r.name)}${moved}</title></path></a>`;
     }).join('');
 
     const nodes = (phases, pos, x, labelX, anchor, totals) => phases.map(p => {
       const col = phColor(p), nd = pos[p];
-      return `<rect x="${x}" y="${nd.y.toFixed(1)}" width="${nodeW}" height="${nd.h.toFixed(1)}" rx="3" fill="${col}"/>
-        <text x="${labelX}" y="${(nd.y + nd.h / 2).toFixed(1)}" fill="var(--text)" font-family="Inter,sans-serif" font-size="12.5" dominant-baseline="middle" text-anchor="${anchor}">${phName(p)} <tspan fill="var(--muted)">${totals[p]}</tspan></text>`;
+      return `<rect x="${x}" y="${nd.y0.toFixed(1)}" width="${nodeW}" height="${Math.max(2, nd.h).toFixed(1)}" rx="3" fill="${col}"/>
+        <text x="${labelX}" y="${(nd.y0 + nd.h / 2).toFixed(1)}" fill="var(--text)" font-family="Inter,sans-serif" font-size="12.5" dominant-baseline="middle" text-anchor="${anchor}">${phName(p)} <tspan fill="var(--muted)">${totals[p]}</tspan></text>`;
     }).join('');
 
     wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Поток концептов по фазам">
-      ${ribbons}
+      ${strands}
       ${nodes(leftPhases, L, leftX, leftX - 8, 'end', leftTot)}
       ${nodes(rightPhases, R, rightX, rightX + nodeW + 8, 'start', rightTot)}
       <text x="${leftX - 8}" y="12" fill="var(--muted)" font-family="Inter,sans-serif" font-size="10.5" letter-spacing="0.06em" text-anchor="end">ОТКУДА</text>
