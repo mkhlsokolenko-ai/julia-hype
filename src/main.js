@@ -81,6 +81,7 @@ function glowSprite(color) {
 let canvas, ctx, dpr = 1, cssW = W, cssH = H;
 let placed = [], hovered = -1, intro = 0, reduced = false, mapVisible = true;
 let compareMode = false, compareSel = [];
+let mapFrames = null, mapMonths = [], scrubIdx = -1, playTimer = null;
 
 function resize() {
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -659,6 +660,66 @@ function setStats(count, updated) {
   if (u) u.textContent = updated ? new Date(updated).toLocaleDateString('ru-RU') : '—';
 }
 
+function fmtScrubMonth(m) {
+  try { return new Date(m).toLocaleDateString('ru-RU', { year: 'numeric', month: 'short' }); }
+  catch (_) { return String(m).slice(0, 7); }
+}
+
+async function loadTimeline() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_phase_timeline`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return;
+    const months = [...new Set(rows.map(r => r.snapshot_month))].sort();
+    const byMonth = {}; months.forEach(m => (byMonth[m] = []));
+    rows.forEach(r => byMonth[r.snapshot_month] && byMonth[r.snapshot_month].push(r));
+    const current = {}, frames = {};
+    for (const m of months) {
+      byMonth[m].forEach(r => { current[r.slug] = { slug: r.slug, canonical_name: r.name, phase: r.phase, velocity: r.velocity, tier: r.tier }; });
+      frames[m] = Object.values(current).map(o => ({ ...o }));
+    }
+    mapFrames = frames; mapMonths = months; scrubIdx = months.length - 1;
+    buildScrubUI();
+  } catch (_) { /* scrubber optional */ }
+}
+
+function buildScrubUI() {
+  const bar = document.getElementById('map-scrub');
+  if (!bar || mapMonths.length < 2) return;
+  bar.hidden = false;
+  const last = mapMonths.length - 1;
+  bar.innerHTML = `<button id="scrub-play" type="button" aria-label="Проиграть">▶</button>
+    <input id="scrub-range" type="range" min="0" max="${last}" value="${last}" step="1" aria-label="Месяц" />
+    <span id="scrub-label">${fmtScrubMonth(mapMonths[last])}</span>`;
+  document.getElementById('scrub-range').addEventListener('input', e => setScrub(Number(e.target.value)));
+  document.getElementById('scrub-play').addEventListener('click', togglePlay);
+}
+
+function setScrub(i) {
+  if (!mapFrames || i < 0 || i >= mapMonths.length) return;
+  scrubIdx = i;
+  placed = layout(mapFrames[mapMonths[i]]);
+  const lab = document.getElementById('scrub-label'), range = document.getElementById('scrub-range');
+  if (lab) lab.textContent = fmtScrubMonth(mapMonths[i]);
+  if (range && Number(range.value) !== i) range.value = i;
+}
+
+function togglePlay() {
+  const play = document.getElementById('scrub-play');
+  if (playTimer) { clearInterval(playTimer); playTimer = null; if (play) play.textContent = '▶'; return; }
+  if (scrubIdx >= mapMonths.length - 1) setScrub(0);
+  if (play) play.textContent = '⏸';
+  playTimer = setInterval(() => {
+    if (scrubIdx >= mapMonths.length - 1) { clearInterval(playTimer); playTimer = null; if (play) play.textContent = '▶'; return; }
+    setScrub(scrubIdx + 1);
+  }, 550);
+}
+
 async function fetchHype() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_hype`, {
     method: 'POST',
@@ -696,5 +757,6 @@ async function fetchHype() {
     const updated = rows.map(r => r.updated_at).filter(Boolean).sort().pop();
     setStats(rows.length, updated);
     renderTrending(rows);
+    loadTimeline();
   } catch (_) { setStats('—', null); }
 })();
