@@ -154,6 +154,8 @@
     .gap-h .gap-sub { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px; letter-spacing: 0; color: var(--muted); }
     .gap-wrap { margin-top: 16px; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.02); padding: 10px; }
     .gap-wrap svg { width: 100%; height: auto; display: block; }
+    .flow-wrap { margin-top: 16px; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.02); padding: 10px; }
+    .flow-wrap svg { width: 100%; height: auto; display: block; }
     .gap-pt { cursor: pointer; transition: opacity .12s; }
     .gap-pt:hover { opacity: 1 !important; }
 
@@ -224,6 +226,7 @@
       <button id="tab-map" class="on">Hype-карта</button>
       <button id="tab-graph">Граф связей</button>
       <button id="tab-gap">Разрыв</button>
+      <button id="tab-flow">Поток</button>
     </div>
 
     <div class="stage" id="stage-map">
@@ -237,6 +240,10 @@
     <div class="stage" id="stage-gap" style="display:none">
       <div class="eyebrow">Разрыв: наука ↔ внедрение · вверх-слева — наука впереди adoption, вниз-справа — внедрены, наука остывает</div>
       <div class="gap-wrap" id="gap-wrap"></div>
+    </div>
+    <div class="stage" id="stage-flow" style="display:none">
+      <div class="eyebrow">Река концептов · слева — с какой фазы начинали, справа — где сейчас; толщина ленты = число концептов</div>
+      <div class="flow-wrap" id="flow-wrap"></div>
     </div>
 
     <div class="legend" id="legend-map">
