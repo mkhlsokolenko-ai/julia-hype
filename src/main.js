@@ -234,9 +234,56 @@ function phasePill(key) {
   const ph = PHASES[key] || { color: '#6B5E93', short: '—' };
   return `<span class="mv-pill" style="background:${ph.color}22;color:${ph.color}"><i></i>${ph.short}</span>`;
 }
-function wireTry() {
-  document.querySelectorAll('.try button').forEach(b =>
+const CURATED = [
+  'RAG против fine-tuning — что выбрать?', 'Будущее reasoning-моделей', 'Что угасает в 2026?',
+  'Автономные кодинг-агенты: хайп или реальность?', 'Мультимодальные модели в 2026',
+  'Векторные БД против графовых для RAG', 'Diffusion против autoregressive в генерации видео',
+  'Стоит ли ставить на edge AI?', 'RLHF против DPO', 'Куда движется генерация изображений',
+  'Function calling и tool use — зрелость', 'AI-агенты для бизнес-процессов', 'Что с генерацией музыки AI?',
+  'Inference-оптимизация: главные подходы', 'Малые языковые модели против больших',
+  'AI в кибербезопасности — тренды', 'Интерпретируемость моделей: прогресс', 'Робо-эдвайзеры в финансах',
+  'Промышленное компьютерное зрение', 'Сегментация изображений: SAM и дальше', 'MLOps-платформы — что выбрать',
+  'AI-скрининг резюме: риски', 'Генерация видео text-to-video в 2026', 'Что растёт быстрее всего в AI?',
+  'Какие концепты вышли на плато?', 'Adversarial-атаки и защита моделей', 'Локальный запуск LLM на устройствах',
+  'Агенты против пайплайнов: когда что', 'Будущее мультиагентных систем', 'Генеративный AI в дизайне',
+  'Retrieval-augmented generation: ограничения', 'AI-копилоты для разработчиков', 'Длинный контекст против RAG',
+  'Квантизация и сжатие моделей', 'Синтетические данные для обучения', 'Open-source против закрытых моделей',
+  'Эмбеддинги: какие выбрать', 'Оценка качества LLM-ответов', 'Голосовые AI-ассистенты в 2026',
+  'Тренды в обучении с подкреплением', 'Когда reasoning-модели окупаются', 'Генерация кода: лидеры и аутсайдеры',
+  'Что переоценено в AI прямо сейчас?', 'Векторный поиск против полнотекстового', 'AI-агенты и безопасность',
+];
+
+function pickRandom(arr, n) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, n);
+}
+
+function fillSuggestions(queries, label) {
+  const wrap = document.getElementById('try-chips'), lab = document.getElementById('try-l');
+  if (!wrap) return;
+  if (lab && label) lab.textContent = label;
+  wrap.innerHTML = queries.map(q => `<button type="button" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('');
+  wrap.querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => { const v = b.getAttribute('data-q'); if (v) window.location.href = `/search.html?q=${encodeURIComponent(v)}`; }));
+}
+
+async function renderSuggestions() {
+  // мгновенно показываем curated (чипы никогда не пустые), затем апгрейдим до реальных запросов
+  fillSuggestions(pickRandom(CURATED, 4), 'Попробуйте:');
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_recent_queries`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_limit: 8 }),
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return;
+    const qs = rows.map(r => (r.query || '').trim()).filter(q => q.length >= 4 && q.length <= 120);
+    const uniq = [...new Set(qs)];
+    if (uniq.length >= 3) fillSuggestions(uniq.slice(0, 4), 'Сейчас спрашивают:');
+  } catch (_) { /* остаёмся на curated */ }
 }
 function renderTrending(rows) {
   const el = document.getElementById('trend-chips'); if (!el) return;
@@ -338,31 +385,6 @@ async function renderNews() {
       </a>`).join('');
     addMoreToggle(el, '.nw-more', rows.length - 3, 'flex');
   } catch (_) { /* news optional */ }
-}
-
-async function renderRecentQueries() {
-  const sec = document.getElementById('recentq');
-  const wrap = document.getElementById('recentq-chips');
-  if (!sec || !wrap) return;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_recent_queries`, {
-      method: 'POST',
-      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_limit: 10 }),
-    });
-    if (!res.ok) return;
-    const rows = await res.json();
-    if (!Array.isArray(rows) || !rows.length) return;
-    wrap.innerHTML = rows.map(r =>
-      `<button class="recentq-chip" data-q="${escapeHtml(r.query)}">${escapeHtml(r.query)}</button>`
-    ).join('');
-    wrap.querySelectorAll('.recentq-chip').forEach(b =>
-      b.addEventListener('click', () => {
-        const v = b.getAttribute('data-q');
-        if (v) window.location.href = `/search.html?q=${encodeURIComponent(v)}`;
-      }));
-    sec.style.display = '';
-  } catch (_) { /* recent queries optional */ }
 }
 
 async function renderFreshConcepts() {
@@ -653,12 +675,11 @@ async function fetchHype() {
   ctx = canvas.getContext('2d');
   wireSearch();
   wireSwitcher();
-  wireTry();
+  renderSuggestions();
   wireCompare();
   renderMovers();
   renderNews();
   renderDigest();
-  renderRecentQueries();
   renderFreshConcepts();
   resize();
   window.addEventListener('resize', () => { if (mapVisible) resize(); });
