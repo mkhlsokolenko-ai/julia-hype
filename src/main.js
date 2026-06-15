@@ -290,17 +290,15 @@ function renderTrending(rows) {
   const el = document.getElementById('trend-chips'); if (!el) return;
   const vel = r => Number(r.velocity) || 0;
   const recent = r => Number(r.recent_papers) || 0;
-  const byHeat = (a, b) => vel(b) - vel(a) || recent(b) - recent(a);
-  // «на пике»: сначала фаза peak, затем slope (восхождение), затем растущие.
-  // НЕ по модулю velocity — иначе наверх лезут падающие и шум малых выборок.
-  const peak = rows.filter(r => r.phase === 'peak').sort(byHeat);
-  const slope = rows.filter(r => r.phase === 'slope').sort(byHeat);
-  const rising = rows.filter(r => vel(r) > 0).sort(byHeat);
-  const seen = new Set(), top = [];
-  for (const r of [...peak, ...slope, ...rising]) {
-    if (seen.has(r.slug)) continue;
-    seen.add(r.slug); top.push(r);
-    if (top.length === 4) break;
+  // «в тренде сейчас» = реально набирающие импульс: velocity > 0,
+  // взвешено объёмом (sqrt recent_papers), чтобы наверх не лезли мелкие шумные всплески
+  // и не висели остывающие пиковые (velocity < 0). Фаза — только цвет-индикатор.
+  const heat = r => vel(r) * Math.sqrt(Math.max(0, recent(r)));
+  let top = rows.filter(r => vel(r) > 0).sort((a, b) => heat(b) - heat(a)).slice(0, 4);
+  if (top.length < 4) {
+    const seen = new Set(top.map(r => r.slug));
+    const fill = rows.filter(r => !seen.has(r.slug)).sort((a, b) => vel(b) - vel(a)).slice(0, 4 - top.length);
+    top = [...top, ...fill];
   }
   el.innerHTML = top.map(r => {
     const ph = PHASES[r.phase] || { color: '#C084FC' };
