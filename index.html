@@ -157,6 +157,12 @@
     .gap-pt { cursor: pointer; transition: opacity .12s; }
     .gap-pt:hover { opacity: 1 !important; }
 
+    .nw-more { display: none; }
+    .dg-more { display: none; }
+    .more-toggle { margin-top: 16px; padding: 9px 18px; border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(255,255,255,.025); color: var(--text); font-family: inherit; font-size: 13.5px; cursor: pointer; transition: border-color .15s; }
+    .more-toggle:hover { border-color: rgba(192,132,252,.45); }
+
     .tip { position: fixed; z-index: 50; pointer-events: none; background: rgba(20,12,42,.97); border: 1px solid rgba(192,132,252,.35);
       border-radius: 12px; padding: 11px 13px; max-width: 280px; box-shadow: 0 20px 50px -20px rgba(0,0,0,.7); backdrop-filter: blur(6px); }
     .tip-name { font-weight: 700; font-size: 14px; margin-bottom: 5px; color: #fff; }
@@ -217,6 +223,7 @@
     <div class="switcher">
       <button id="tab-map" class="on">Hype-карта</button>
       <button id="tab-graph">Граф связей</button>
+      <button id="tab-gap">Разрыв</button>
     </div>
 
     <div class="stage" id="stage-map">
@@ -226,6 +233,10 @@
     <div class="stage" id="stage-graph" style="display:none">
       <div class="eyebrow">Граф связей · колесо — зум, тяни фон — пан, даблклик — сброс</div>
       <canvas id="graph"></canvas>
+    </div>
+    <div class="stage" id="stage-gap" style="display:none">
+      <div class="eyebrow">Разрыв: наука ↔ внедрение · вверх-слева — наука впереди adoption, вниз-справа — внедрены, наука остывает</div>
+      <div class="gap-wrap" id="gap-wrap"></div>
     </div>
 
     <div class="legend" id="legend-map">
@@ -240,11 +251,6 @@
       <span style="color:#F0ABFC"><i></i>Парадигма</span>
       <span style="color:#FB923C"><i></i>Инфраструктура</span>
     </div>
-
-    <section class="gap" id="gap" style="display:none">
-      <h2 class="gap-h">Разрыв: <span class="em">наука ↔ внедрение</span> <span class="gap-sub">— где исследования бегут впереди adoption</span></h2>
-      <div class="gap-wrap" id="gap-wrap"></div>
-    </section>
 
     <section class="digest" id="digest" style="display:none">
       <div class="digest-head">
