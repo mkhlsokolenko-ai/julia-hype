@@ -180,28 +180,32 @@ function wireSearch() {
 }
 
 function wireSwitcher() {
-  const tabMap = document.getElementById('tab-map'), tabGraph = document.getElementById('tab-graph'), tabGap = document.getElementById('tab-gap');
-  const panelMap = document.getElementById('stage-map'), panelGraph = document.getElementById('stage-graph'), panelGap = document.getElementById('stage-gap');
+  const tabMap = document.getElementById('tab-map'), tabGraph = document.getElementById('tab-graph'), tabGap = document.getElementById('tab-gap'), tabFlow = document.getElementById('tab-flow');
+  const panelMap = document.getElementById('stage-map'), panelGraph = document.getElementById('stage-graph'), panelGap = document.getElementById('stage-gap'), panelFlow = document.getElementById('stage-flow');
   const legMap = document.getElementById('legend-map'), legGraph = document.getElementById('legend-graph');
   if (!tabMap || !tabGraph) return;
   const setView = (v) => {
     panelMap.style.display = v === 'map' ? 'block' : 'none';
     panelGraph.style.display = v === 'graph' ? 'block' : 'none';
     if (panelGap) panelGap.style.display = v === 'gap' ? 'block' : 'none';
-    // phase legend for map & gap (точки окрашены по фазе), tier legend for graph
+    if (panelFlow) panelFlow.style.display = v === 'flow' ? 'block' : 'none';
+    // tier legend только для графа; фазовая легенда для map/gap/flow (всё окрашено по фазе)
     legMap.style.display = v === 'graph' ? 'none' : 'flex';
     legGraph.style.display = v === 'graph' ? 'flex' : 'none';
     tabMap.classList.toggle('on', v === 'map');
     tabGraph.classList.toggle('on', v === 'graph');
     if (tabGap) tabGap.classList.toggle('on', v === 'gap');
+    if (tabFlow) tabFlow.classList.toggle('on', v === 'flow');
     if (v === 'graph') { mapVisible = false; initGraph(); }
     else { hideGraph(); }
     if (v === 'map') { mapVisible = true; resize(); } else { mapVisible = false; }
     if (v === 'gap') renderRealityGap();
+    if (v === 'flow') renderPhaseFlow();
   };
   tabMap.addEventListener('click', () => setView('map'));
   tabGraph.addEventListener('click', () => setView('graph'));
   if (tabGap) tabGap.addEventListener('click', () => setView('gap'));
+  if (tabFlow) tabFlow.addEventListener('click', () => setView('flow'));
 }
 
 function fmtMonth(d) {
@@ -446,6 +450,84 @@ async function renderRealityGap() {
     </svg>`;
     wrap.dataset.rendered = '1';
   } catch (_) { /* reality-gap optional */ }
+}
+
+async function renderPhaseFlow() {
+  const wrap = document.getElementById('flow-wrap');
+  if (!wrap || wrap.dataset.rendered) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_phase_flow`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!res.ok) return;
+    const links = await res.json();
+    if (!Array.isArray(links) || !links.length) return;
+
+    const ORDER = ['trigger', 'peak', 'trough', 'slope', 'plateau'];
+    const phName = ph => (PHASES[ph] && PHASES[ph].short) || ph;
+    const phColor = ph => (PHASES[ph] && PHASES[ph].color) || '#6B5E93';
+
+    const leftTot = {}, rightTot = {};
+    let total = 0;
+    links.forEach(l => {
+      const n = Number(l.n) || 0;
+      leftTot[l.from_phase] = (leftTot[l.from_phase] || 0) + n;
+      rightTot[l.to_phase] = (rightTot[l.to_phase] || 0) + n;
+      total += n;
+    });
+    if (!total) return;
+    const leftPhases = ORDER.filter(p => leftTot[p]);
+    const rightPhases = ORDER.filter(p => rightTot[p]);
+
+    const W = 760, H = 440, padY = 22, nodeW = 14, ml = 78, gap = 12;
+    const leftX = ml, rightX = W - ml - nodeW;
+    const colH = H - 2 * padY;
+    const maxNodes = Math.max(leftPhases.length, rightPhases.length);
+    const vScale = (colH - (maxNodes - 1) * gap) / total;
+
+    const place = (phases, totals) => {
+      const pos = {}; let y = padY;
+      phases.forEach(p => { const h = Math.max(2, totals[p] * vScale); pos[p] = { y, h }; y += h + gap; });
+      return pos;
+    };
+    const L = place(leftPhases, leftTot), R = place(rightPhases, rightTot);
+    const lOff = {}, rOff = {};
+    leftPhases.forEach(p => lOff[p] = 0);
+    rightPhases.forEach(p => rOff[p] = 0);
+
+    const sorted = links.slice().sort((a, b) =>
+      ORDER.indexOf(a.from_phase) - ORDER.indexOf(b.from_phase) ||
+      ORDER.indexOf(a.to_phase) - ORDER.indexOf(b.to_phase));
+    const ribbons = sorted.map(l => {
+      const n = Number(l.n) || 0; if (!n) return '';
+      const th = n * vScale;
+      const x0 = leftX + nodeW, x1 = rightX, xc = (x0 + x1) / 2;
+      const y0 = L[l.from_phase].y + lOff[l.from_phase];
+      const y1 = R[l.to_phase].y + rOff[l.to_phase];
+      lOff[l.from_phase] += th; rOff[l.to_phase] += th;
+      const col = phColor(l.from_phase);
+      const d = `M${x0} ${y0.toFixed(1)} C${xc} ${y0.toFixed(1)}, ${xc} ${y1.toFixed(1)}, ${x1} ${y1.toFixed(1)} L${x1} ${(y1 + th).toFixed(1)} C${xc} ${(y1 + th).toFixed(1)}, ${xc} ${(y0 + th).toFixed(1)}, ${x0} ${(y0 + th).toFixed(1)} Z`;
+      const same = l.from_phase === l.to_phase ? ' (остались)' : '';
+      return `<path d="${d}" fill="${col}" fill-opacity="0.28"><title>${phName(l.from_phase)} → ${phName(l.to_phase)}: ${n}${same}</title></path>`;
+    }).join('');
+
+    const nodes = (phases, pos, x, labelX, anchor, totals) => phases.map(p => {
+      const col = phColor(p), nd = pos[p];
+      return `<rect x="${x}" y="${nd.y.toFixed(1)}" width="${nodeW}" height="${nd.h.toFixed(1)}" rx="3" fill="${col}"/>
+        <text x="${labelX}" y="${(nd.y + nd.h / 2).toFixed(1)}" fill="var(--text)" font-family="Inter,sans-serif" font-size="12.5" dominant-baseline="middle" text-anchor="${anchor}">${phName(p)} <tspan fill="var(--muted)">${totals[p]}</tspan></text>`;
+    }).join('');
+
+    wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Поток концептов по фазам">
+      ${ribbons}
+      ${nodes(leftPhases, L, leftX, leftX - 8, 'end', leftTot)}
+      ${nodes(rightPhases, R, rightX, rightX + nodeW + 8, 'start', rightTot)}
+      <text x="${leftX - 8}" y="12" fill="var(--muted)" font-family="Inter,sans-serif" font-size="10.5" letter-spacing="0.06em" text-anchor="end">ОТКУДА</text>
+      <text x="${rightX + nodeW + 8}" y="12" fill="var(--muted)" font-family="Inter,sans-serif" font-size="10.5" letter-spacing="0.06em" text-anchor="start">ГДЕ СЕЙЧАС</text>
+    </svg>`;
+    wrap.dataset.rendered = '1';
+  } catch (_) { /* flow optional */ }
 }
 
 function setStats(count, updated) {
