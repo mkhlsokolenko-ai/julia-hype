@@ -341,6 +341,34 @@ async function renderFreshConcepts() {
   } catch (_) { /* fresh concepts optional */ }
 }
 
+async function renderDigest() {
+  const sec = document.getElementById('digest');
+  const list = document.getElementById('digest-list');
+  const upd = document.getElementById('digest-upd');
+  if (!sec || !list) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_news_digest`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    const d = Array.isArray(rows) ? rows[0] : rows;
+    if (!d || !Array.isArray(d.themes) || !d.themes.length) return;
+    list.innerHTML = d.themes.map(t => `
+      <div class="dg-item">
+        <div class="dg-title">${escapeHtml(t.title || '')}</div>
+        <div class="dg-blurb">${escapeHtml(t.blurb || '')}</div>
+        ${Array.isArray(t.sources) && t.sources.length ? `<div class="dg-src">${t.sources.map(s =>
+          `<a href="${escapeHtml(safeUrl(s.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(prettySource(s.source_name))}</a>`
+        ).join('')}</div>` : ''}
+      </div>`).join('');
+    if (upd && d.generated_at) upd.textContent = `обновлено ${relTime(d.generated_at)}`;
+    sec.style.display = '';
+  } catch (_) { /* digest optional */ }
+}
+
 function setStats(count, updated) {
   const c = document.getElementById('stat-count'), u = document.getElementById('stat-updated');
   if (c) c.textContent = count;
@@ -366,6 +394,7 @@ async function fetchHype() {
   wireTry();
   renderMovers();
   renderNews();
+  renderDigest();
   renderRecentQueries();
   renderFreshConcepts();
   resize();
