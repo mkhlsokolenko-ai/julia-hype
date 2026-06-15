@@ -259,10 +259,119 @@ function buildSparklineHtml(series) {
     </section>`;
 }
 
+function buildAskHtml(name) {
+  return `
+    <section class="section">
+      <h2 class="section-h">💬 Спросить про <span class="em">${esc(name)}</span></h2>
+      <div class="glass ask-card">
+        <div class="ask-row">
+          <input id="ask-input" type="text" autocomplete="off" placeholder="Например: где применяется? что мешает внедрению?" />
+          <button id="ask-send" type="button" aria-label="Спросить">→</button>
+        </div>
+        <div class="ask-suggest">
+          <button type="button" data-q="Где это применяется на практике?">Где применяется?</button>
+          <button type="button" data-q="Какие главные ограничения и риски?">Ограничения и риски?</button>
+          <button type="button" data-q="С чем это конкурирует или связано?">С чем связано?</button>
+        </div>
+        <div id="ask-answer" class="ask-answer" hidden></div>
+      </div>
+    </section>`;
+}
+
+function wireAsk(name) {
+  const input = document.getElementById('ask-input');
+  const send = document.getElementById('ask-send');
+  if (!input || !send) return;
+  const fire = () => { const q = input.value.trim(); if (q) askConcept(name, q); };
+  send.addEventListener('click', fire);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') fire(); });
+  document.querySelectorAll('.ask-suggest button').forEach(b =>
+    b.addEventListener('click', () => { const q = b.getAttribute('data-q'); input.value = q; askConcept(name, q); }));
+}
+
+async function askConcept(name, question) {
+  const out = document.getElementById('ask-answer');
+  if (!out) return;
+  out.hidden = false;
+  out.innerHTML = '<div class="thinking">JULIA думает</div>';
+  if (!SUPABASE_URL || !ANON_KEY) { out.innerHTML = '<div class="ask-err">Нет конфигурации (env).</div>'; return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/julia-search`, {
+      method: 'POST',
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: `${name}: ${question}` }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) { out.innerHTML = `<div class="ask-err">${esc(data.error || ('HTTP ' + res.status))}</div>`; return; }
+    const concepts = Array.isArray(data.concepts) ? data.concepts : [];
+    const sources = Array.isArray(data.sources) ? data.sources : [];
+    const self = getSlug();
+    const prose = (data.answer || '').split(/\n{2,}/).map(par => {
+      let html = esc(par).replace(/\[(\d+)\]/g, '<sup class="cite">[$1]</sup>');
+      concepts.forEach(c => {
+        if (!c.name || c.name.length < 4 || c.slug === self) return;
+        const re = new RegExp(`(${c.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'i');
+        html = html.replace(re, `<a class="c-link" href="/concept.html?slug=${encodeURIComponent(c.slug)}">$1</a>`);
+      });
+      return `<p>${html}</p>`;
+    }).join('');
+    const srcHtml = sources.length
+      ? `<div class="ask-src"><div class="ask-src-h">Источники</div>${sources.map(s =>
+          `<div class="asrc"><span class="anum">${esc(String(s.n ?? ''))}</span>${s.url
+            ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.source_name || s.url)}</a>`
+            : `<span>${esc(s.title || s.source_name || '—')}</span>`}</div>`).join('')}</div>`
+      : '';
+    out.innerHTML = `<div class="answer-prose">${prose || '<p>Не удалось собрать ответ.</p>'}</div>${srcHtml}`;
+  } catch (e) {
+    out.innerHTML = `<div class="ask-err">${esc(e.message || String(e))}</div>`;
+  }
+}
+
+function conceptVerdict(c, s, a) {
+  const v = Number(c.velocity) || 0;                          // импульс г/г, -1..1
+  const adoption = a ? Math.max(0, Math.min(1, Number(a.composite_adoption_score) || 0)) : null;
+  const rising = v > 0.05, falling = v < -0.05;
+  const hiAdopt = adoption != null && adoption >= 0.5;
+  let text, tone = 'neutral';
+  switch (c.phase) {
+    case 'peak':
+      text = falling
+        ? 'На пике ожиданий, но импульс уже снижается — впереди вероятна коррекция к разочарованию.'
+        : 'Пик завышенных ожиданий: максимум внимания, ждите остывания хайпа.';
+      tone = 'warn'; break;
+    case 'trough':
+      if (hiAdopt) { text = 'Хайп прошёл, но технология реально внедряется — рабочий инструмент без шумихи.'; tone = 'good'; }
+      else if (rising) { text = 'Дно разочарования позади: интерес снова растёт, возможен второй виток.'; tone = 'neutral'; }
+      else { text = 'Дно разочарования: ажиотаж спал, зрелость ещё не набрана.'; tone = 'warn'; }
+      break;
+    case 'slope':
+      text = 'Склон просветления: хайп позади, ценность доказывается на практике.'; tone = 'good'; break;
+    case 'plateau':
+      text = falling
+        ? 'Зрелая технология: наука остыла — это уже индустрия, стадия коммодитизации.'
+        : 'Плато продуктивности: стабильное массовое применение.';
+      tone = 'good'; break;
+    case 'trigger':
+      text = rising
+        ? 'Ранняя стадия, но интерес быстро растёт — стоит следить.'
+        : 'Технологический триггер: рано, сигналов внедрения пока мало.';
+      tone = 'neutral'; break;
+    default:
+      if (rising && hiAdopt) { text = 'Растёт и уже внедряется — заметная динамика.'; tone = 'good'; }
+      else if (rising) { text = 'Интерес растёт, но реального внедрения пока мало.'; tone = 'neutral'; }
+      else if (falling) { text = 'Импульс снижается, активность затухает.'; tone = 'warn'; }
+      else { text = 'Пока недостаточно данных для уверенного вывода.'; tone = 'neutral'; }
+  }
+  return { text, tone };
+}
+
 function render(c, s, a, l, h, vser) {
   const ph = PHASES[c.phase] || PHASES.unknown;
   const v = Number(c.velocity) || 0;
   const sigs = s ? buildSignals(s) : null;
+  const vd = conceptVerdict(c, s, a);
+  const vdColor = vd.tone === 'good' ? GREEN : vd.tone === 'warn' ? AMBER : PURPLE;
+  const verdictHtml = `<div class="verdict" style="--vc:${vdColor}"><span class="verdict-ic">💡</span><span class="verdict-t">${esc(vd.text)}</span></div>`;
 
   const sigHtml = sigs ? `
     <section class="section">
@@ -291,13 +400,16 @@ function render(c, s, a, l, h, vser) {
           <b>${v > 0 ? '+' : ''}${Math.round(v * 100)}%</b> скорость г/г · в фазе с <b>${fmtSince(c.phase_since)}</b>
         </span>
       </div>
+      ${verdictHtml}
       ${c.short_description ? `<p class="desc">${esc(c.short_description)}</p>` : ''}
     </section>
+    ${buildAskHtml(c.canonical_name)}
     ${buildJourneyHtml(h)}
     ${buildSparklineHtml(vser)}
     ${sigHtml}
     ${buildAdoptionHtml(a)}
     ${buildLineageHtml(l, c.canonical_name)}`;
+  wireAsk(c.canonical_name);
 }
 
 function showError(msg) {
