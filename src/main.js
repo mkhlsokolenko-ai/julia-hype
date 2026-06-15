@@ -180,23 +180,28 @@ function wireSearch() {
 }
 
 function wireSwitcher() {
-  const tabMap = document.getElementById('tab-map'), tabGraph = document.getElementById('tab-graph');
-  const panelMap = document.getElementById('stage-map'), panelGraph = document.getElementById('stage-graph');
+  const tabMap = document.getElementById('tab-map'), tabGraph = document.getElementById('tab-graph'), tabGap = document.getElementById('tab-gap');
+  const panelMap = document.getElementById('stage-map'), panelGraph = document.getElementById('stage-graph'), panelGap = document.getElementById('stage-gap');
   const legMap = document.getElementById('legend-map'), legGraph = document.getElementById('legend-graph');
   if (!tabMap || !tabGraph) return;
   const setView = (v) => {
-    const graph = v === 'graph';
-    panelMap.style.display = graph ? 'none' : 'block';
-    panelGraph.style.display = graph ? 'block' : 'none';
-    legMap.style.display = graph ? 'none' : 'flex';
-    legGraph.style.display = graph ? 'flex' : 'none';
-    tabMap.classList.toggle('on', !graph);
-    tabGraph.classList.toggle('on', graph);
-    if (graph) { mapVisible = false; initGraph(); }
-    else { hideGraph(); mapVisible = true; resize(); }
+    panelMap.style.display = v === 'map' ? 'block' : 'none';
+    panelGraph.style.display = v === 'graph' ? 'block' : 'none';
+    if (panelGap) panelGap.style.display = v === 'gap' ? 'block' : 'none';
+    // phase legend for map & gap (точки окрашены по фазе), tier legend for graph
+    legMap.style.display = v === 'graph' ? 'none' : 'flex';
+    legGraph.style.display = v === 'graph' ? 'flex' : 'none';
+    tabMap.classList.toggle('on', v === 'map');
+    tabGraph.classList.toggle('on', v === 'graph');
+    if (tabGap) tabGap.classList.toggle('on', v === 'gap');
+    if (v === 'graph') { mapVisible = false; initGraph(); }
+    else { hideGraph(); }
+    if (v === 'map') { mapVisible = true; resize(); } else { mapVisible = false; }
+    if (v === 'gap') renderRealityGap();
   };
   tabMap.addEventListener('click', () => setView('map'));
   tabGraph.addEventListener('click', () => setView('graph'));
+  if (tabGap) tabGap.addEventListener('click', () => setView('gap'));
 }
 
 function fmtMonth(d) {
@@ -269,6 +274,25 @@ function relTime(iso) {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
+function addMoreToggle(container, moreSelector, hiddenCount, displayVal) {
+  const host = container.parentElement || container;
+  const old = host.querySelector('.more-toggle');
+  if (old) old.remove();
+  if (hiddenCount < 1) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'more-toggle';
+  const label = `Показать ещё ${hiddenCount}`;
+  btn.textContent = label;
+  let open = false;
+  btn.addEventListener('click', () => {
+    open = !open;
+    container.querySelectorAll(moreSelector).forEach(el => { el.style.display = open ? displayVal : 'none'; });
+    btn.textContent = open ? 'Свернуть' : label;
+  });
+  host.appendChild(btn);
+}
+
 async function renderNews() {
   const el = document.getElementById('news'); if (!el) return;
   try {
@@ -280,8 +304,8 @@ async function renderNews() {
     if (!res.ok) return;
     const rows = await res.json();
     if (!Array.isArray(rows) || !rows.length) return;
-    el.innerHTML = rows.map(n => `
-      <a class="nw-card" href="${escapeHtml(safeUrl(n.url))}" target="_blank" rel="noopener noreferrer">
+    el.innerHTML = rows.map((n, i) => `
+      <a class="nw-card${i >= 3 ? ' nw-more' : ''}" href="${escapeHtml(safeUrl(n.url))}" target="_blank" rel="noopener noreferrer">
         <div class="nw-top">
           <span class="nw-src">${escapeHtml(prettySource(n.source_name))}</span>
           <span class="nw-lang">${escapeHtml((n.language || '').toUpperCase())}</span>
@@ -290,6 +314,7 @@ async function renderNews() {
         ${n.excerpt ? `<div class="nw-excerpt">${escapeHtml(n.excerpt)}</div>` : ''}
         <div class="nw-date">${escapeHtml(relTime(n.published_at))}</div>
       </a>`).join('');
+    addMoreToggle(el, '.nw-more', rows.length - 3, 'flex');
   } catch (_) { /* news optional */ }
 }
 
@@ -356,23 +381,23 @@ async function renderDigest() {
     const rows = await res.json();
     const d = Array.isArray(rows) ? rows[0] : rows;
     if (!d || !Array.isArray(d.themes) || !d.themes.length) return;
-    list.innerHTML = d.themes.map(t => `
-      <div class="dg-item">
+    list.innerHTML = d.themes.map((t, i) => `
+      <div class="dg-item${i > 0 ? ' dg-more' : ''}">
         <div class="dg-title">${escapeHtml(t.title || '')}</div>
         <div class="dg-blurb">${escapeHtml(t.blurb || '')}</div>
         ${Array.isArray(t.sources) && t.sources.length ? `<div class="dg-src">${t.sources.map(s =>
           `<a href="${escapeHtml(safeUrl(s.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(prettySource(s.source_name))}</a>`
         ).join('')}</div>` : ''}
       </div>`).join('');
+    addMoreToggle(list, '.dg-more', d.themes.length - 1, 'block');
     if (upd && d.generated_at) upd.textContent = `обновлено ${relTime(d.generated_at)}`;
     sec.style.display = '';
   } catch (_) { /* digest optional */ }
 }
 
 async function renderRealityGap() {
-  const sec = document.getElementById('gap');
   const wrap = document.getElementById('gap-wrap');
-  if (!sec || !wrap) return;
+  if (!wrap || wrap.dataset.rendered) return;
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/julia_public_reality_gap`, {
       method: 'POST',
@@ -419,7 +444,7 @@ async function renderRealityGap() {
       <text x="18" y="${cy2}" fill="var(--muted)" font-family="Inter,sans-serif" font-size="12" text-anchor="middle" opacity="0.7" transform="rotate(-90 18 ${cy2})">← скорость науки →</text>
       ${circles}
     </svg>`;
-    sec.style.display = '';
+    wrap.dataset.rendered = '1';
   } catch (_) { /* reality-gap optional */ }
 }
 
@@ -449,7 +474,6 @@ async function fetchHype() {
   renderMovers();
   renderNews();
   renderDigest();
-  renderRealityGap();
   renderRecentQueries();
   renderFreshConcepts();
   resize();
