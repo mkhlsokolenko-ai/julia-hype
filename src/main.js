@@ -329,6 +329,7 @@ async function renderMovers(mode = 'big') {
 const SOURCE_LABEL = {
   aiworldjournal: 'AI World Journal', venturebeat: 'VentureBeat', techcrunch_ai: 'TechCrunch',
   crunchbase: 'Crunchbase', habr: 'Habr', vc_ru: 'vc.ru', hn: 'Hacker News', a16z: 'a16z',
+  mltimes: 'MLTimes',
 };
 function prettySource(s) { return SOURCE_LABEL[s] || s; }
 function safeUrl(u) { return (typeof u === 'string' && /^https?:\/\//i.test(u)) ? u : '#'; }
