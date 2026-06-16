@@ -450,12 +450,20 @@ function showError(msg) {
       rpc('julia_public_lineage', { p_slug: slug }).catch(() => null),
       rpc('julia_public_phase_history', { p_slug: slug }).catch(() => null),
       rpc('julia_public_velocity_series', { p_slug: slug }).catch(() => null),
-      rpc('julia_public_concept_sources', { p_slug: slug }).catch(() => null),
+      rpc('julia_public_concept_sources', { p_slug: slug, p_limit: 6 }).catch(() => null),
     ]);
     const c = Array.isArray(cRows) && cRows[0];
     if (!c) { showError('Концепт не найден.'); return; }
     render(c, Array.isArray(sRows) ? sRows[0] : null, Array.isArray(aRows) ? aRows[0] : null, Array.isArray(lRows) ? lRows : null, Array.isArray(hRows) ? hRows : null, Array.isArray(vRows) ? vRows : null, Array.isArray(srcRows) ? srcRows : null);
-    document.title = `JULIA — ${c.canonical_name}`;
+    document.title = `${c.canonical_name} — JULIA`;
+    const cdesc = (c.short_description || `${c.canonical_name}: фаза на кривой хайпа, импульс и связи AI-концепта в JULIA.`).slice(0, 200);
+    const curl = `https://julia-ai.pro/concept.html?slug=${encodeURIComponent(getSlug())}`;
+    const setAttr = (sel, attr, val) => { const el = document.querySelector(sel); if (el) el.setAttribute(attr, val); };
+    setAttr('meta[name="description"]', 'content', cdesc);
+    setAttr('meta[property="og:title"]', 'content', `${c.canonical_name} — JULIA`);
+    setAttr('meta[property="og:description"]', 'content', cdesc);
+    setAttr('meta[property="og:url"]', 'content', curl);
+    setAttr('link[rel="canonical"]', 'href', curl);
   } catch (err) {
     showError(err.message || String(err));
   }
