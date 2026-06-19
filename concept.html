@@ -175,10 +175,14 @@
   <div class="wrap">
     <div class="topbar">
       <span class="wordmark" onclick="window.location.href='/'">JULIA</span>
-      <a class="back" href="/">← Hype Map</a>
+      <div class="topbar-right">
+        <a class="back" href="/">← Hype Map</a>
+        <span id="auth-badge" class="auth-badge"></span>
+      </div>
     </div>
     <div id="content"><div class="loading">Загрузка концепта…</div></div>
   </div>
   <script type="module" src="/src/concept.js"></script>
+  <script type="module" src="/src/authBadge.js"></script>
 </body>
 </html>
